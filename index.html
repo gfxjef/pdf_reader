@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>PDF Flipbook Full Screen con Zoom Directo</title>
+  <!-- Enlaza el archivo de estilos -->
+  <link rel="stylesheet" href="styles.css">
+  
+  <!-- Incluir PDF.js desde CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <script>
+    // Configura el worker de PDF.js
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+  </script>
+  <!-- Incluir jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <!-- Incluir Turn.js versión 0.11 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/turn.js/0.11/turn.min.js"></script>
+</head>
+<body>
+  <!-- Loader: se mostrará mientras se carga el PDF y se inicializa el flipbook -->
+  <div id="loader-overlay">
+    <div class="spinner"></div>
+  </div>
+  
+  <!-- Wrapper para centrar y posicionar el flipbook -->
+  <div id="flipbook-wrapper">
+    <div id="flipbook"></div>
+  </div>
+  
+  <!-- Botones de navegación -->
+  <div id="navigation">
+    <button id="prev-page">Anterior</button>
+    <button id="next-page">Siguiente</button>
+    <button id="first-page">Primera</button>
+  </div>
+  
+  <!-- Enlaza los scripts propios -->
+  <script src="loader.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

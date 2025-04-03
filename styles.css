@@ -1,72 +1,132 @@
-/* html y body ocupan el 100% del viewport */
+/* Estilos base y comunes */
 html, body {
-    width: 100%;
-    height: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-  }
-  
-  /* Wrapper para centrar y posicionar el flipbook.
-     Se posiciona de forma absoluta y se le aplica una transición en transform. */
-  #flipbook-wrapper {
-    position: absolute;
-    background: #fff;
-    transition: transform 0.3s ease;
-  }
-  
-  /* Contenedor del flipbook; sus dimensiones serán asignadas por Turn.js */
-  #flipbook {
-    display: block;
-  }
-  
-  /* Los canvas se muestran en bloque y se centran dentro del flipbook */
-  canvas {
-    display: block;
-    margin: 0 auto;
-  }
-  
-  /* Loader overlay: ocupa toda la pantalla con fondo blanco */
-  #loader-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(255, 255, 255, 1);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 2000;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Wrapper para centrar y posicionar el flipbook */
+#flipbook-wrapper {
+  position: absolute;
+  background: #fff;
+  transition: transform 0.3s ease;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+  overflow: hidden !important; /* Forzar ocultar desbordamiento */
+}
+
+/* Contenedor del flipbook */
+#flipbook {
+  display: block;
+  overflow: hidden !important; /* Forzar ocultar desbordamiento */
+}
+
+/* Los canvas se muestran en bloque y se centran dentro del flipbook */
+canvas {
+  display: block;
+  margin: 0 auto;
+}
+
+/* Clases para las páginas */
+.turn-page {
+  overflow: hidden !important;
+}
+
+/* Loader overlay */
+#loader-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 1);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.spinner {
+  border: 12px solid #f3f3f3;
+  border-top: 12px solid #3498db;
+  border-radius: 50%;
+  width: 80px;
+  height: 80px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Botones de navegación */
+#navigation {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  text-align: center;
+  width: 100%;
+}
+
+button {
+  font-size: 16px;
+  padding: 10px 20px;
+  margin: 0 10px;
+  cursor: pointer;
+  background-color: #4a89dc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  transition: background-color 0.2s;
+}
+
+button:hover {
+  background-color: #357bd8;
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+/* Efecto shadow para cuando se voltean las páginas */
+.hard-shadow {
+  box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+}
+
+/* Ajustes específicos para móviles */
+@media screen and (max-width: 767px) {
+  button {
+    padding: 8px 15px;
+    font-size: 14px;
+    margin: 0 5px;
   }
   
   .spinner {
-    border: 12px solid #f3f3f3;
-    border-top: 12px solid #3498db;
-    border-radius: 50%;
-    width: 80px;
-    height: 80px;
-    animation: spin 1s linear infinite;
+    width: 60px;
+    height: 60px;
+    border-width: 8px;
   }
   
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+  /* Asegurar sin barras de desplazamiento en móviles */
+  html, body, #flipbook-wrapper, #flipbook {
+    overflow: hidden !important;
   }
   
-  /* Botones de navegación, posicionados fijos en la parte inferior */
+  /* Reducir márgenes en móviles */
   #navigation {
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 1000;
+    bottom: 10px;
   }
-  
+}
+
+/* Ajustes específicos para tablets */
+@media screen and (min-width: 768px) and (max-width: 1023px) {
   button {
-    font-size: 16px;
-    padding: 10px 20px;
-    margin: 0 10px;
-    cursor: pointer;
+    padding: 10px 18px;
+    font-size: 15px;
   }
-  
+}

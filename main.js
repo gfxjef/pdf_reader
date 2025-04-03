@@ -61,19 +61,53 @@ $(document).ready(function() {
   
   // Función para inicializar el flipbook y centrar el wrapper
   function initializeFlipbook() {
-    const viewportHeight = $(window).height(); // Estado base (sin zoom)
-    const singlePageWidth = viewportHeight * (pageWidth / pageHeight);
-    const flipbookWidth = 2 * singlePageWidth;
+    // Calcular dimensiones responsivas
+    const dimensions = calculateResponsiveDimensions();
     
     $('#flipbook').turn({
-      width: flipbookWidth,
-      height: viewportHeight,
+      width: dimensions.width,
+      height: dimensions.height,
       autoCenter: false,
       display: 'double'
     });
     
-    centerWrapper(flipbookWidth, viewportHeight);
+    centerWrapper(dimensions.width, dimensions.height);
     $('#flipbook').turn('page', 1);
+  }
+  
+  // Función para calcular dimensiones responsivas
+  function calculateResponsiveDimensions() {
+    const viewportWidth = $(window).width();
+    const viewportHeight = $(window).height();
+    const pageAspectRatio = pageWidth / pageHeight;
+    
+    // Determinar si estamos limitados por ancho o por alto
+    // Reservar espacio para botones y márgenes (ajustar según necesidad)
+    const maxWidth = viewportWidth * 0.95;
+    const maxHeight = viewportHeight * 0.9;
+    
+    // Calcular dimensiones basadas en pantalla doble (2 páginas lado a lado)
+    // Para una sola página, el aspect ratio sería pageAspectRatio
+    // Para dos páginas, el aspect ratio es 2 * pageAspectRatio
+    const flipbookAspectRatio = 2 * pageAspectRatio;
+    
+    let width, height;
+    
+    // Si el ancho disponible dividido por la relación de aspecto es menor que la altura máxima,
+    // entonces el ancho es el factor limitante
+    if (maxWidth / flipbookAspectRatio <= maxHeight) {
+      width = maxWidth;
+      height = width / flipbookAspectRatio;
+    } else {
+      // La altura es el factor limitante
+      height = maxHeight;
+      width = height * flipbookAspectRatio;
+    }
+    
+    return {
+      width: width,
+      height: height
+    };
   }
   
   // Función para centrar el wrapper en pantalla
@@ -144,20 +178,14 @@ $(document).ready(function() {
   
   $('#first-page').on('click', function() {
     $('#flipbook').turn('page', 1);
-    const viewportHeight = $(window).height();
-    const singlePageWidth = viewportHeight * (pageWidth / pageHeight);
-    const flipbookWidth = 2 * singlePageWidth;
-    centerWrapper(flipbookWidth, viewportHeight);
   });
   
   // Ajustar el tamaño del flipbook al redimensionar la ventana
   $(window).resize(function() {
     if ($('#flipbook').data('turn')) {
-      const viewportHeight = $(window).height();
-      const singlePageWidth = viewportHeight * (pageWidth / pageHeight);
-      const flipbookWidth = 2 * singlePageWidth;
-      $('#flipbook').turn('size', flipbookWidth, viewportHeight);
-      centerWrapper(flipbookWidth, viewportHeight);
+      const dimensions = calculateResponsiveDimensions();
+      $('#flipbook').turn('size', dimensions.width, dimensions.height);
+      centerWrapper(dimensions.width, dimensions.height);
     }
   });
 });

@@ -1,7 +1,9 @@
+-->
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PDF Flipbook Full Screen con Zoom Directo</title>
   <!-- Enlaza el archivo de estilos -->
   <link rel="stylesheet" href="styles.css">
@@ -16,6 +18,49 @@
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <!-- Incluir Turn.js versión 0.11 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/turn.js/0.11/turn.min.js"></script>
+  
+  <!-- Script para detectar dispositivo y cargar el JS correspondiente -->
+  <script>
+    function detectarDispositivo() {
+      const ancho = window.innerWidth;
+      if (ancho < 768) {
+        return 'mobile';
+      } else if (ancho < 1024) {
+        return 'tablet';
+      } else {
+        return 'desktop';
+      }
+    }
+    
+    // Cargar el script correspondiente según el dispositivo
+    function cargarScript() {
+      const dispositivo = detectarDispositivo();
+      const script = document.createElement('script');
+      script.src = dispositivo + '.js';
+      document.body.appendChild(script);
+      console.log('Cargado script para: ' + dispositivo);
+    }
+    
+    // Esperar a que DOM esté listo para cargar el script
+    $(document).ready(function() {
+      cargarScript();
+    });
+    
+    // Recargar si cambia el tamaño de ventana significativamente
+    let tiempoEspera;
+    let dispositivoActual = detectarDispositivo();
+    
+    window.addEventListener('resize', function() {
+      clearTimeout(tiempoEspera);
+      tiempoEspera = setTimeout(function() {
+        const nuevoDispositivo = detectarDispositivo();
+        if (nuevoDispositivo !== dispositivoActual) {
+          console.log('Cambio de dispositivo detectado, recargando...');
+          location.reload();
+        }
+      }, 500);
+    });
+  </script>
 </head>
 <body>
   <!-- Loader: se mostrará mientras se carga el PDF y se inicializa el flipbook -->
@@ -35,8 +80,7 @@
     <button id="first-page">Primera</button>
   </div>
   
-  <!-- Enlaza los scripts propios -->
+  <!-- Enlaza el loader.js -->
   <script src="loader.js"></script>
-  <script src="main.js"></script>
 </body>
 </html>

@@ -189,7 +189,7 @@
             // Función para obtener la lista de PDFs disponibles
             async function getPDFList() {
                 try {
-                    const response = await fetch('/listar-pdfs');
+                    const response = await fetch('./listar-pdfs');
                     const pdfs = await response.json();
                     return pdfs;
                 } catch (error) {

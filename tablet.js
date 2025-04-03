@@ -14,8 +14,9 @@ $(document).ready(function() {
     console.log('Turn.js cargado correctamente.');
   }
   
-  // URL del PDF
-  const pdfUrl = 'catalogo2.pdf';
+  // URL del PDF - Usa la variable global definida en index.html
+  const pdfUrl = selectedPDF || 'catalogo2.pdf';
+  console.log("Cargando PDF en tablet:", pdfUrl);
   
   const flipbookContainer = document.getElementById('flipbook');
   let pagesRendered = 0;

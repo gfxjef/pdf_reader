@@ -16,8 +16,9 @@ $(document).ready(function() {
     console.log('Turn.js cargado correctamente.');
   }
   
-  // URL del PDF
-  const pdfUrl = 'catalogo2.pdf';
+  // URL del PDF - Usa la variable global definida en index.html
+  const pdfUrl = selectedPDF || 'catalogo2.pdf';
+  console.log("Cargando PDF en móvil:", pdfUrl);
   
   const flipbookContainer = document.getElementById('flipbook');
   // Limpiamos el flipbook para evitar duplicación de páginas

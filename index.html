@@ -1,10 +1,9 @@
--->
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PDF Flipbook Full Screen con Zoom Directo</title>
+  <title>Catálogos Kossodo 2025</title>
   <!-- Enlaza el archivo de estilos -->
   <link rel="stylesheet" href="styles.css">
   
@@ -13,6 +12,28 @@
   <script>
     // Configura el worker de PDF.js
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    
+    // Función para obtener parámetros de URL
+    function getURLParameter(name) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(name);
+    }
+    
+    // Guardar el PDF seleccionado como variable global
+    let selectedPDF = getURLParameter('pdf');
+    
+    // Verificar si el PDF está definido y si tiene la ruta correcta
+    if (!selectedPDF) {
+      // Si no hay parámetro, usar un PDF por defecto
+      selectedPDF = 'pdfs/Catálogo de Industria Farmaceutica - Kossodo 2025.pdf';
+    } else if (!selectedPDF.startsWith('pdfs/')) {
+      // Si la ruta no comienza con 'pdfs/', añadirla
+      if (!selectedPDF.includes('/')) {
+        selectedPDF = 'pdfs/' + selectedPDF;
+      }
+    }
+    
+    console.log("PDF seleccionado:", selectedPDF);
   </script>
   <!-- Incluir jQuery -->
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -73,12 +94,37 @@
     <div id="flipbook"></div>
   </div>
   
-  <!-- Botones de navegación -->
+  <!-- Botones de navegación simplificados -->
   <div id="navigation">
-    <button id="prev-page">Anterior</button>
-    <button id="next-page">Siguiente</button>
-    <button id="first-page">Primera</button>
+    <button id="back-catalog" class="nav-btn" title="Volver al catálogo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+        <path fill="currentColor" d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M19,5V19H5V5H19Z"></path>
+        <path fill="currentColor" d="M7,7H15V9H7V7M7,11H15V13H7V11M7,15H11V17H7V15Z"></path>
+      </svg>
+    </button>
+    <button id="first-page" class="nav-btn" title="Primera página">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+        <path fill="currentColor" d="M18.41,7.41L17,6L11,12L17,18L18.41,16.59L13.83,12L18.41,7.41M12.41,7.41L11,6L5,12L11,18L12.41,16.59L7.83,12L12.41,7.41Z"></path>
+      </svg>
+    </button>
+    <button id="prev-page" class="nav-btn" title="Página anterior">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+        <path fill="currentColor" d="M15.41,16.58L10.83,12L15.41,7.41L14,6L8,12L14,18L15.41,16.58Z"></path>
+      </svg>
+    </button>
+    <button id="next-page" class="nav-btn" title="Página siguiente">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+        <path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"></path>
+      </svg>
+    </button>
   </div>
+  
+  <script>
+    // Agregar evento al botón de volver al catálogo
+    document.getElementById('back-catalog').addEventListener('click', function() {
+      window.location.href = 'catalogo.html';
+    });
+  </script>
   
   <!-- Enlaza el loader.js -->
   <script src="loader.js"></script>

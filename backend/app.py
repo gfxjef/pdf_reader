@@ -3,16 +3,21 @@ import os
 
 app = Flask(__name__, 
             static_folder='../frontend',
-            static_url_path='/static')  # Considera usar un path específico
+            static_url_path='')  # Cambiado a '' en lugar de '/static'
 
 @app.route('/')
 def index():
-    # Redirigir a la página de catálogo en lugar de mostrar index.html
+    # Redirigir a la página de catálogo
     return redirect(url_for('catalogo'))
 
 @app.route('/catalogo')
 def catalogo():
     return app.send_static_file('catalogo.html')
+
+@app.route('/pdfs/<path:filename>')
+def serve_pdf(filename):
+    """Endpoint para servir archivos PDF directamente"""
+    return send_from_directory(os.path.join(app.static_folder, 'pdfs'), filename)
 
 @app.route('/listar-pdfs')
 def listar_pdfs():

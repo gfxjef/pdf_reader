@@ -321,7 +321,11 @@
 
             async function generatePDFThumbnail(pdfUrl) {
                 try {
-                    const loadingTask = pdfjsLib.getDocument(pdfUrl);
+                    // Usar la ruta relativa a la aplicación, no a la raíz del servidor
+                    const fullPdfUrl = window.location.pathname.replace('catalogo', 'pdfs/') + 
+                                    pdfUrl.replace('pdfs/', '');
+                    
+                    const loadingTask = pdfjsLib.getDocument(fullPdfUrl);
                     const pdf = await loadingTask.promise;
                     const page = await pdf.getPage(1);
                     

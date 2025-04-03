@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Catálogos Kossodo 2025</title>
   <!-- Enlaza el archivo de estilos -->
-  <link rel="stylesheet" href="styles.css">
-  
+  <link rel="stylesheet" href="css/styles.css">  
   <!-- Incluir PDF.js desde CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
   <script>
@@ -57,7 +56,7 @@
     function cargarScript() {
       const dispositivo = detectarDispositivo();
       const script = document.createElement('script');
-      script.src = dispositivo + '.js';
+      script.src = 'js/' + dispositivo + '.js';
       document.body.appendChild(script);
       console.log('Cargado script para: ' + dispositivo);
     }
@@ -127,6 +126,6 @@
   </script>
   
   <!-- Enlaza el loader.js -->
-  <script src="loader.js"></script>
+  <script src="js/loader.js"></script>
 </body>
 </html>

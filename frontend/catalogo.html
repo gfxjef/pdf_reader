@@ -189,73 +189,11 @@
             // Función para obtener la lista de PDFs disponibles
             async function getPDFList() {
                 try {
-                    // Intentar el método directo para escanear el directorio
-                    try {
-                        // Accedemos al directorio pdfs/ directamente
-                        const response = await fetch('pdfs/');
-                        const html = await response.text();
-                        
-                        // Creamos un parser DOM para analizar la respuesta HTML
-                        const parser = new DOMParser();
-                        const doc = parser.parseFromString(html, 'text/html');
-                        
-                        // Buscamos todos los enlaces (que pueden ser archivos)
-                        const links = doc.querySelectorAll('a');
-                        const pdfFiles = [];
-                        
-                        // Filtramos para quedarnos solo con archivos PDF
-                        links.forEach(link => {
-                            const href = link.getAttribute('href');
-                            if (href && href.toLowerCase().endsWith('.pdf')) {
-                                // Decodificamos el nombre del archivo
-                                const fileName = decodeURIComponent(href);
-                                pdfFiles.push(fileName);
-                            }
-                        });
-                        
-                        if (pdfFiles.length > 0) {
-                            console.log("PDFs detectados automáticamente:", pdfFiles);
-                            return pdfFiles;
-                        }
-                    } catch (directError) {
-                        console.warn("No se pudo escanear el directorio directamente:", directError);
-                    }
-
-                    // Si falla el método directo, intentamos con el archivo PHP
-                    try {
-                        const response = await fetch('listar-pdfs.php');
-                        const contentType = response.headers.get('content-type');
-                        if (contentType && contentType.includes('application/json')) {
-                            const pdfs = await response.json();
-                            console.log("PDFs cargados desde PHP:", pdfs);
-                            return pdfs;
-                        }
-                    } catch (phpError) {
-                        console.warn("Error con PHP:", phpError);
-                    }
-                    
-                    // Si el PHP falla, intentamos con el archivo JS
-                    try {
-                        const jsResponse = await fetch('listar-pdfs.js');
-                        if (jsResponse.ok) {
-                            const jsonText = await jsResponse.text();
-                            try {
-                                const pdfs = JSON.parse(jsonText);
-                                console.log("PDFs cargados desde JS:", pdfs);
-                                return pdfs;
-                            } catch (parseError) {
-                                console.warn("Error al parsear JSON desde JS:", parseError);
-                            }
-                        }
-                    } catch (jsError) {
-                        console.warn("Error con JS:", jsError);
-                    }
-                    
-                    // Si todo falla, usar lista hardcodeada
-                    console.warn('Usando lista de respaldo hardcodeada');
-                    return fallbackPDFList();
+                    const response = await fetch('/listar-pdfs');
+                    const pdfs = await response.json();
+                    return pdfs;
                 } catch (error) {
-                    console.error('Error al cargar la lista de PDFs:', error);
+                    console.error('Error al cargar PDFs:', error);
                     return fallbackPDFList();
                 }
             }

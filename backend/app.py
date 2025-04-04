@@ -3,7 +3,8 @@ from werkzeug.utils import secure_filename
 import os
 import uuid
 import shutil  # Añadir esta importación
-from .pdf_processor import PDFProcessor
+import pdf_processor
+from pdf_processor import PDFProcessor
 
 # Configuración de carga de archivos
 UPLOAD_FOLDER = 'uploads'

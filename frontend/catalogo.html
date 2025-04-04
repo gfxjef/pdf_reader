@@ -185,192 +185,216 @@
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', async function() {
-            // Función para obtener la lista de PDFs disponibles
-            async function getPDFList() {
-                try {
-                    const response = await fetch('./listar-pdfs');
-                    const pdfs = await response.json();
-                    return pdfs;
-                } catch (error) {
-                    console.error('Error al cargar PDFs:', error);
-                    return fallbackPDFList();
-                }
+document.addEventListener('DOMContentLoaded', async function() {
+    // Modificada: función para obtener la lista de PDFs procesados con sus miniaturas
+    async function getPDFList() {
+        try {
+            // Cambio: Usar el endpoint de PDFs procesados que incluye las miniaturas
+            const response = await fetch('./listar-pdfs-procesados');
+            const processedPdfs = await response.json();
+            
+            if (processedPdfs && processedPdfs.length > 0) {
+                return processedPdfs;
+            } else {
+                // Si no hay PDFs procesados, intentar con el listado normal
+                const normalResponse = await fetch('./listar-pdfs');
+                const pdfs = await normalResponse.json();
+                return pdfs.map(pdf => ({ name: pdf }));
             }
+        } catch (error) {
+            console.error('Error al cargar PDFs:', error);
+            return fallbackPDFList().map(pdf => ({ name: pdf }));
+        }
+    }
 
-            // Lista de respaldo en caso de que falle la obtención automática
-            function fallbackPDFList() {
-                return [
-                    "Catálogo de Alimentos y bebidas - Kossodo 2025.pdf",
-                    "Catálogo de Industria Farmaceutica - Kossodo 2025.pdf",
-                    "Catálogo de indutria  Farmaeuticas- Kossodo 2025.pdf",
-                    "Catálogo de Mineria - Kossodo 2025.pdf",
-                    "Catálogo de Pesca - Kossodo 2025.pdf"
-                ];
+    // Lista de respaldo en caso de que falle la obtención automática (sin cambios)
+    function fallbackPDFList() {
+        return [
+            "Catálogo de Alimentos y bebidas - Kossodo 2025.pdf",
+            "Catálogo de Industria Farmaceutica - Kossodo 2025.pdf",
+            "Catálogo de indutria  Farmaeuticas- Kossodo 2025.pdf",
+            "Catálogo de Mineria - Kossodo 2025.pdf",
+            "Catálogo de Pesca - Kossodo 2025.pdf"
+        ];
+    }
+
+    // Modificada: función para generar el HTML de las tarjetas
+    async function renderCatalogCards(pdfs) {
+        const catalogGrid = document.getElementById('catalog-grid');
+        
+        if (!pdfs || pdfs.length === 0) {
+            catalogGrid.innerHTML = `
+                <div class="no-docs">
+                    No se encontraron documentos. Intente nuevamente más tarde.
+                </div>
+            `;
+            return;
+        }
+        
+        // Limpiar el grid
+        catalogGrid.innerHTML = '';
+        
+        // Crear tarjetas para todos los PDFs
+        pdfs.forEach((pdf, index) => {
+            const fileName = pdf.name;
+            const cleanFileName = fileName.replace(/^\/pdfs\//, '');
+            const pdfUrl = `index.html?pdf=pdfs/${encodeURIComponent(cleanFileName)}`;
+            
+            // Determinar la ruta de la miniatura
+            let thumbnailUrl;
+            if (pdf.thumbnail) {
+                // Usar la miniatura pre-generada si está disponible
+                thumbnailUrl = pdf.thumbnail;
+            } else {
+                // Si no hay miniatura, dejar null y mostraremos el icono por defecto
+                thumbnailUrl = null;
             }
-
-            // Función para generar el HTML de las tarjetas
-            async function renderCatalogCards(pdfs) {
-                const catalogGrid = document.getElementById('catalog-grid');
-                
-                if (!pdfs || pdfs.length === 0) {
-                    catalogGrid.innerHTML = `
-                        <div class="no-docs">
-                            No se encontraron documentos. Intente nuevamente más tarde.
+            
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.id = `pdf-card-${index}`;
+            card.setAttribute('data-pdf-url', pdfUrl);
+            card.addEventListener('click', function() {
+                window.location.href = this.getAttribute('data-pdf-url');
+            });
+            
+            // Crear el HTML para la tarjeta
+            if (thumbnailUrl) {
+                // Si tenemos miniatura, mostrarla directamente
+                card.innerHTML = `
+                    <div class="card-thumbnail">
+                        <img src="${thumbnailUrl}" alt="${cleanFileName}" class="loaded">
+                    </div>
+                `;
+            } else {
+                // Sin miniatura, mostrar icono PDF por defecto
+                card.innerHTML = `
+                    <div class="card-thumbnail">
+                        <div class="card-loading">
+                            <span class="loader"></span>
                         </div>
-                    `;
-                    return;
-                }
-                
-                // Limpiar el grid
-                catalogGrid.innerHTML = '';
-                
-                // Crear tarjetas para todos los PDFs (sin miniaturas aún)
-                pdfs.forEach((pdf, index) => {
-                    const fileName = pdf;
-                    const cleanFileName = fileName.replace(/^\/pdfs\//, '');
-                    const pdfUrl = `index.html?pdf=pdfs/${encodeURIComponent(cleanFileName)}`;
-                    
-                    const card = document.createElement('div');
-                    card.className = 'card';
-                    card.id = `pdf-card-${index}`;
-                    card.setAttribute('data-pdf-url', pdfUrl);
-                    card.addEventListener('click', function() {
-                        window.location.href = this.getAttribute('data-pdf-url');
-                    });
-                    
-                    card.innerHTML = `
-                        <div class="card-thumbnail">
-                            <div class="card-loading">
-                                <span class="loader"></span>
-                            </div>
-                            <svg class="pdf-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                                <path fill="#e74c3c" d="M12,2H6V22H18V8L12,2Z M12,4L16,8H12V4Z M9,10H15V12H9V10Z M9,14H15V16H9V14Z M9,18H13V20H9V18Z"/>
-                            </svg>
-                        </div>
-                    `;
-                    
-                    catalogGrid.appendChild(card);
-                    
-                    // Efecto de aparición escalonada
-                    setTimeout(() => {
-                        card.classList.add('loaded');
-                    }, 50 * index);
-                });
-                
-                // Cargar miniaturas en paralelo
-                const thumbnailPromises = pdfs.map(async (pdf, index) => {
-                    const fileName = pdf;
-                    const cleanFileName = fileName.replace(/^\/pdfs\//, '');
-                    const cacheKey = `pdf_thumbnail_${cleanFileName}`;
-                    
-                    // Verificar caché
-                    const cachedThumbnail = localStorage.getItem(cacheKey);
-                    if (cachedThumbnail) {
-                        return { index, thumbnail: cachedThumbnail };
-                    }
-                    
-                    try {
-                        const thumbnail = await generatePDFThumbnail('pdfs/' + cleanFileName);
-                        if (thumbnail) {
-                            try {
-                                localStorage.setItem(cacheKey, thumbnail);
-                            } catch (e) {
-                                console.warn('No se pudo guardar en caché (almacenamiento lleno)');
-                            }
-                        }
-                        return { index, thumbnail };
-                    } catch (error) {
-                        console.error(`Error al procesar PDF ${cleanFileName}:`, error);
-                        return { index, thumbnail: null };
-                    }
-                });
-                
-                // Procesar todas las miniaturas en paralelo y actualizar tarjetas
-                const results = await Promise.allSettled(thumbnailPromises);
-                
-                results.forEach((result) => {
-                    if (result.status === 'fulfilled' && result.value.thumbnail) {
-                        const card = document.getElementById(`pdf-card-${result.value.index}`);
-                        if (card) {
-                            const thumbnailDiv = card.querySelector('.card-thumbnail');
-                            
-                            // Remover indicador de carga
-                            const loadingDiv = thumbnailDiv.querySelector('.card-loading');
-                            if (loadingDiv) {
-                                loadingDiv.remove();
-                            }
-                            
-                            // Crear y agregar imagen miniatura sin estilos inline
-                            const img = document.createElement('img');
-                            img.src = result.value.thumbnail;
-                            img.alt = card.getAttribute('data-pdf-url').split('=').pop();
-                            
-                            thumbnailDiv.appendChild(img);
-                            
-                            // Aplicar efecto fade-in y remover icono PDF por defecto
-                            const pdfIcon = thumbnailDiv.querySelector('.pdf-icon');
-                            setTimeout(() => {
-                                img.classList.add('loaded');
-                                if (pdfIcon) pdfIcon.remove();
-                            }, 50);
-                        }
-                    }
-                });
+                        <svg class="pdf-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <path fill="#e74c3c" d="M12,2H6V22H18V8L12,2Z M12,4L16,8H12V4Z M9,10H15V12H9V10Z M9,14H15V16H9V14Z M9,18H13V20H9V18Z"/>
+                        </svg>
+                    </div>
+                `;
             }
-
-            async function generatePDFThumbnail(pdfUrl) {
-                try {
-                    // Usar la ruta relativa a la aplicación, no a la raíz del servidor
-                    const fullPdfUrl = window.location.pathname.replace('catalogo', 'pdfs/') + 
-                                    pdfUrl.replace('pdfs/', '');
-                    
-                    const loadingTask = pdfjsLib.getDocument(fullPdfUrl);
-                    const pdf = await loadingTask.promise;
-                    const page = await pdf.getPage(1);
-                    
-                    // Escala menor para mejor rendimiento
-                    const viewport = page.getViewport({ scale: 1 });
-                    
-                    const canvas = document.createElement('canvas');
-                    const context = canvas.getContext('2d');
-                    canvas.width = viewport.width;
-                    canvas.height = viewport.height;
-                    
-                    await page.render({
-                        canvasContext: context,
-                        viewport: viewport
-                    }).promise;
-                    
-                    // Calidad 0.7 para carga rápida y menor tamaño
-                    return canvas.toDataURL('image/jpeg', 0.7);
-                } catch (error) {
-                    console.error('Error al generar la miniatura:', error);
-                    return null;
-                }
+            
+            catalogGrid.appendChild(card);
+            
+            // Efecto de aparición escalonada
+            setTimeout(() => {
+                card.classList.add('loaded');
+            }, 50 * index);
+            
+            // Para PDFs sin miniatura, intentar generarla dinámicamente
+            if (!thumbnailUrl) {
+                generateAndSetThumbnail(card, cleanFileName, index);
             }
-
-            // Cargar la librería PDF.js
-            async function loadPdfJs() {
-                if (typeof pdfjsLib === 'undefined') {
-                    const script = document.createElement('script');
-                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js';
-                    document.body.appendChild(script);
-                    
-                    return new Promise((resolve) => {
-                        script.onload = () => {
-                            window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-                            resolve();
-                        };
-                    });
-                }
-                return Promise.resolve();
-            }
-
-            await loadPdfJs();
-            const pdfs = await getPDFList();
-            await renderCatalogCards(pdfs);
         });
+    }
+
+    // Nueva función: generar y asignar miniatura para PDFs sin miniatura pre-generada
+    async function generateAndSetThumbnail(card, pdfName, index) {
+        try {
+            const thumbnailDiv = card.querySelector('.card-thumbnail');
+            
+            // Intentar obtener la miniatura generada dinámicamente
+            const cacheKey = `pdf_thumbnail_${pdfName}`;
+            let thumbnail = localStorage.getItem(cacheKey);
+            
+            if (!thumbnail) {
+                // Generar miniatura solo si no está en caché
+                thumbnail = await generatePDFThumbnail('pdfs/' + pdfName);
+                
+                if (thumbnail) {
+                    try {
+                        localStorage.setItem(cacheKey, thumbnail);
+                    } catch (e) {
+                        console.warn('No se pudo guardar en caché (almacenamiento lleno)');
+                    }
+                }
+            }
+            
+            if (thumbnail) {
+                // Remover indicador de carga
+                const loadingDiv = thumbnailDiv.querySelector('.card-loading');
+                if (loadingDiv) {
+                    loadingDiv.remove();
+                }
+                
+                // Crear y agregar imagen miniatura
+                const img = document.createElement('img');
+                img.src = thumbnail;
+                img.alt = pdfName;
+                
+                thumbnailDiv.appendChild(img);
+                
+                // Aplicar efecto fade-in y remover icono PDF por defecto
+                const pdfIcon = thumbnailDiv.querySelector('.pdf-icon');
+                setTimeout(() => {
+                    img.classList.add('loaded');
+                    if (pdfIcon) pdfIcon.remove();
+                }, 50);
+            }
+        } catch (error) {
+            console.error(`Error al procesar miniatura para ${pdfName}:`, error);
+        }
+    }
+
+    // Sin cambios: función para generar miniaturas dinámicamente si es necesario
+    async function generatePDFThumbnail(pdfUrl) {
+        try {
+            // Usar la ruta relativa a la aplicación, no a la raíz del servidor
+            const fullPdfUrl = window.location.pathname.replace('catalogo', 'pdfs/') + 
+                            pdfUrl.replace('pdfs/', '');
+            
+            const loadingTask = pdfjsLib.getDocument(fullPdfUrl);
+            const pdf = await loadingTask.promise;
+            const page = await pdf.getPage(1);
+            
+            // Escala menor para mejor rendimiento
+            const viewport = page.getViewport({ scale: 1 });
+            
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            
+            await page.render({
+                canvasContext: context,
+                viewport: viewport
+            }).promise;
+            
+            // Calidad 0.7 para carga rápida y menor tamaño
+            return canvas.toDataURL('image/jpeg', 0.7);
+        } catch (error) {
+            console.error('Error al generar la miniatura:', error);
+            return null;
+        }
+    }
+
+    // Sin cambios: carga de PDF.js
+    async function loadPdfJs() {
+        if (typeof pdfjsLib === 'undefined') {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js';
+            document.body.appendChild(script);
+            
+            return new Promise((resolve) => {
+                script.onload = () => {
+                    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+                    resolve();
+                };
+            });
+        }
+        return Promise.resolve();
+    }
+
+    await loadPdfJs();
+    const pdfs = await getPDFList();
+    await renderCatalogCards(pdfs);
+});
     </script>
 </body>
 </html>

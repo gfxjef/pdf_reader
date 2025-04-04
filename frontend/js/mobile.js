@@ -17,7 +17,7 @@ $(document).ready(function() {
   }
   
   // URL del PDF - Usa la variable global definida en index.html
-  const pdfUrl = selectedPDF || 'catalogo2.pdf';
+  const pdfUrl = selectedPDF || 'pdfs/catalogo2.pdf';
   console.log("Cargando PDF en móvil:", pdfUrl);
   
   const flipbookContainer = document.getElementById('flipbook');
@@ -25,70 +25,161 @@ $(document).ready(function() {
   $(flipbookContainer).empty();
   
   let pagesRendered = 0;
-  let canvasPages = []; // Array para almacenar los canvas de cada página
+  let canvasPages = []; // Array para almacenar los canvas o imágenes de cada página
   
-  // Cargar el PDF usando PDF.js
-  pdfjsLib.getDocument(pdfUrl).promise.then(function(pdf) {
-    const numPages = pdf.numPages;
-    console.log("Número de páginas:", numPages);
+  // Extraer nombre del archivo PDF sin ruta y extensión
+  const pdfFileName = pdfUrl.split('/').pop().replace('.pdf', '');
+  
+  // NUEVO: Verificar si existen imágenes pre-generadas para este PDF
+  checkForPrerenderedImages(pdfFileName)
+    .then(imageData => {
+      if (imageData.hasImages) {
+        console.log(`Usando imágenes pre-generadas (${imageData.pageCount} páginas)`);
+        loadPrerenderedImages(imageData.basePath, imageData.pageCount);
+      } else {
+        console.log('No se encontraron imágenes pre-generadas, renderizando PDF');
+        renderPDFDirectly(pdfUrl);
+      }
+    })
+    .catch(error => {
+      console.error('Error al verificar imágenes pre-generadas:', error);
+      renderPDFDirectly(pdfUrl);
+    });
+  
+  // NUEVA FUNCIÓN: Verificar si existen imágenes pre-generadas para este PDF
+  async function checkForPrerenderedImages(pdfName) {
+    try {
+      const response = await fetch('./listar-pdfs-procesados');
+      const processedPdfs = await response.json();
+      
+      const currentPdf = processedPdfs.find(pdf => 
+        pdf.name === pdfName + '.pdf' || 
+        pdf.name === pdfName
+      );
+      
+      if (currentPdf && currentPdf.has_images) {
+        return {
+          hasImages: true,
+          pageCount: currentPdf.pages,
+          basePath: `/data/images/${currentPdf.name}/pdf`,
+          thumbnail: currentPdf.thumbnail
+        };
+      } else {
+        return { hasImages: false };
+      }
+    } catch (error) {
+      console.error('Error al verificar imágenes:', error);
+      return { hasImages: false };
+    }
+  }
+  
+  // NUEVA FUNCIÓN: Cargar imágenes pre-generadas (versión móvil)
+  function loadPrerenderedImages(basePath, pageCount) {
+    let imagesLoaded = 0;
+    pageWidth = 0;
+    pageHeight = 0;
     
-    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-      pdf.getPage(pageNum).then(function(page) {
-        // ⭐ MODIFICADO: Reducir la escala para evitar páginas demasiado grandes
-        const scale = 1.5; // Reducido de 2.0 a 1.5
-        const viewport = page.getViewport({ scale: scale });
+    for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
+      const img = new Image();
+      img.onload = function() {
+        imagesLoaded++;
         
-        // Guardar dimensiones de la primera página para referencia
+        // Guardar las dimensiones de la primera página
         if (pageNum === 1) {
-          pageWidth = viewport.width;
-          pageHeight = viewport.height;
+          pageWidth = this.naturalWidth;
+          pageHeight = this.naturalHeight;
         }
         
-        const canvas = document.createElement('canvas');
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        // Usar willReadFrequently para mejorar el rendimiento
-        const context = canvas.getContext('2d', { willReadFrequently: true });
+        // Guardamos la imagen en el array de páginas
+        canvasPages[pageNum-1] = img;
         
-        const renderContext = {
-          canvasContext: context,
-          viewport: viewport
-        };
+        // Cuando todas las imágenes estén cargadas, inicializar el flipbook
+        if (imagesLoaded === pageCount) {
+          prepareFlipbook(canvasPages, pageCount);
+          hideLoader();
+        }
+      };
+      
+      img.onerror = function() {
+        console.error(`Error al cargar imagen para página ${pageNum}`);
+        imagesLoaded++;
         
-        page.render(renderContext).promise.then(function() {
-          // Guardamos el canvas en el array en la posición correcta
-          canvasPages[pageNum-1] = canvas;
-          pagesRendered++;
-          
-          if (pagesRendered === numPages) {
-            // Una vez que todas las páginas están renderizadas, inicializamos
-            prepareFlipbook(canvasPages, numPages);
-            hideLoader();
-          }
-        });
-      });
+        // Crear una imagen de error
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'error-page';
+        errorDiv.innerHTML = `<div class="error-message">Error al cargar página ${pageNum}</div>`;
+        canvasPages[pageNum-1] = errorDiv;
+        
+        if (imagesLoaded === pageCount) {
+          prepareFlipbook(canvasPages, pageCount);
+          hideLoader();
+        }
+      };
+      
+      // Establecer la ruta a la imagen WebP de esta página
+      img.src = `${basePath}/page_${pageNum}.webp`;
     }
-  }).catch(function(error) {
-    console.error('Error al cargar el PDF:', error);
-  });
+  }
+  
+  // FUNCIÓN EXISTENTE MODIFICADA: Renderizado directo de PDF como respaldo
+  function renderPDFDirectly(pdfUrl) {
+    pdfjsLib.getDocument(pdfUrl).promise.then(function(pdf) {
+      const numPages = pdf.numPages;
+      console.log("Número de páginas:", numPages);
+      
+      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+        pdf.getPage(pageNum).then(function(page) {
+          const scale = 1.5;
+          const viewport = page.getViewport({ scale: scale });
+          
+          if (pageNum === 1) {
+            pageWidth = viewport.width;
+            pageHeight = viewport.height;
+          }
+          
+          const canvas = document.createElement('canvas');
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          const context = canvas.getContext('2d', { willReadFrequently: true });
+          
+          const renderContext = {
+            canvasContext: context,
+            viewport: viewport
+          };
+          
+          page.render(renderContext).promise.then(function() {
+            canvasPages[pageNum-1] = canvas;
+            pagesRendered++;
+            
+            if (pagesRendered === numPages) {
+              prepareFlipbook(canvasPages, numPages);
+              hideLoader();
+            }
+          });
+        });
+      }
+    }).catch(function(error) {
+      console.error('Error al cargar el PDF:', error);
+    });
+  }
   
   // Función para preparar el flipbook después de renderizar todas las páginas
-  function prepareFlipbook(canvasPages, totalPages) {
+  function prepareFlipbook(pages, totalPages) {
     // Limpiamos el flipbook de nuevo por seguridad
     $(flipbookContainer).empty();
     
     // Agregamos solo la primera página inicialmente
-    $(flipbookContainer).append(canvasPages[0]);
+    $(flipbookContainer).append(pages[0]);
     
-    // Aplicamos estilo para que el canvas ocupe el 100% del contenedor
-    $(flipbookContainer).find('canvas').css({
+    // Aplicamos estilo para que el elemento ocupe el 100% del contenedor
+    $(flipbookContainer).find('canvas, img').css({
       'width': '100%',
       'height': '100%',
       'object-fit': 'contain'
     });
     
     // Guardamos todas las páginas en un objeto de datos
-    $(flipbookContainer).data('allPages', canvasPages);
+    $(flipbookContainer).data('allPages', pages);
     $(flipbookContainer).data('currentPage', 1);
     $(flipbookContainer).data('totalPages', totalPages);
     
@@ -104,9 +195,8 @@ $(document).ready(function() {
     console.log('Flipbook móvil inicializado en modo página única');
   }
   
-  // Función para configurar la navegación específica para el modo móvil
+  // El resto del código permanece igual
   function setupNavigation() {
-    // Botón anterior
     $('#prev-page').off('click').on('click', function() {
       const $flipbook = $('#flipbook');
       const currentPage = $flipbook.data('currentPage');
@@ -116,7 +206,6 @@ $(document).ready(function() {
       }
     });
     
-    // Botón siguiente
     $('#next-page').off('click').on('click', function() {
       const $flipbook = $('#flipbook');
       const currentPage = $flipbook.data('currentPage');
@@ -127,16 +216,13 @@ $(document).ready(function() {
       }
     });
     
-    // Botón primera página
     $('#first-page').off('click').on('click', function() {
       showPage(1);
     });
     
-    // Navegación por swipe para móviles
     setupSwipeNavigation();
   }
   
-  // Configurar gestos de swipe para navegación táctil
   function setupSwipeNavigation() {
     let touchStartX = 0;
     let touchEndX = 0;
@@ -151,80 +237,61 @@ $(document).ready(function() {
     }, false);
     
     function handleSwipe() {
-      // Solo procesar swipe si no estamos en zoom
       if (currentZoom === 1) {
-        const swipeThreshold = 50; // Umbral para detectar un swipe
+        const swipeThreshold = 50;
         
         if (touchEndX < touchStartX - swipeThreshold) {
-          // Swipe izquierda -> Página siguiente
           $('#next-page').click();
         }
         
         if (touchEndX > touchStartX + swipeThreshold) {
-          // Swipe derecha -> Página anterior
           $('#prev-page').click();
         }
       }
     }
   }
   
-  // Función para mostrar una página específica
   function showPage(pageNumber) {
     const $flipbook = $('#flipbook');
     const allPages = $flipbook.data('allPages');
     const totalPages = $flipbook.data('totalPages');
     
-    // Validamos el número de página
     if (pageNumber < 1 || pageNumber > totalPages) {
       return;
     }
     
-    // Guardamos la página actual
     $flipbook.data('currentPage', pageNumber);
-    
-    // Limpiamos el flipbook
     $flipbook.empty();
-    
-    // Agregamos la página solicitada
     $flipbook.append(allPages[pageNumber-1]);
     
-    // Aplicamos estilo para que el canvas ocupe el 100% del contenedor
-    $flipbook.find('canvas').css({
+    $flipbook.find('canvas, img').css({
       'width': '100%',
       'height': '100%',
       'object-fit': 'contain'
     });
     
-    // Actualizamos el tamaño del contenedor si es necesario
-    const canvas = allPages[pageNumber-1];
     const dimensions = calculateResponsiveDimensions();
     centerWrapper(dimensions.width, dimensions.height);
     
     console.log(`Mostrando página ${pageNumber} de ${totalPages}`);
   }
   
-  // Función para calcular dimensiones responsivas para MÓVILES
   function calculateResponsiveDimensions() {
     const viewportWidth = $(window).width();
     const viewportHeight = $(window).height();
     const pageAspectRatio = pageWidth / pageHeight;
     
-    // ⭐ MODIFICADO: Aumentar el porcentaje del viewport para mejor visualización
-    const maxWidth = viewportWidth * 0.92; // Usar 92% del ancho disponible
-    const maxHeight = viewportHeight * 0.85; // Usar 85% de la altura disponible
+    const maxWidth = viewportWidth * 0.92;
+    const maxHeight = viewportHeight * 0.85;
     
-    // IMPORTANTE: Calcular dimensiones para UNA SOLA PÁGINA en móviles
     const flipbookAspectRatio = pageAspectRatio;
     
     let width, height;
     
-    // ⭐ MODIFICADO: Cálculo simplificado para ajustar al viewport móvil
     if (maxWidth / flipbookAspectRatio <= maxHeight) {
-      // Si el ancho es el factor limitante
       width = maxWidth;
       height = width / flipbookAspectRatio;
     } else {
-      // Si la altura es el factor limitante
       height = maxHeight;
       width = height * flipbookAspectRatio;
     }
@@ -235,12 +302,10 @@ $(document).ready(function() {
     };
   }
   
-  // Función para centrar el wrapper en pantalla
   function centerWrapper(width, height) {
     const left = Math.max(0, ($(window).width() - width) / 2);
     const top = Math.max(0, ($(window).height() - height) / 2);
     
-    // ⭐ MODIFICADO: Asegurar que el flipbook no sea más grande que la pantalla
     const maxHeight = $(window).height() * 0.85;
     height = Math.min(height, maxHeight);
     
@@ -254,7 +319,6 @@ $(document).ready(function() {
       "overflow": "hidden"
     });
     
-    // Ajustar tamaño del flipbook
     $("#flipbook").css({
       width: "100%",
       height: "100%",
@@ -263,26 +327,22 @@ $(document).ready(function() {
       "align-items": "center"
     });
     
-    // Asegurar que los canvas ocupen el 100% del flipbook
-    $("#flipbook canvas").css({
+    $("#flipbook canvas, #flipbook img").css({
       'width': '100%',
       'height': '100%',
       'object-fit': 'contain'
     });
   }
   
-  // Evento de clic para alternar zoom (simplificado para móviles)
+  // Zooming and resize handlers remain the same
   $('#flipbook-wrapper').on('click', function(event) {
-    // Evitar la propagación para que no interfiera con los botones
     event.stopPropagation();
     
     const wrapper = $(this);
     
     if (currentZoom === 1) {
-      // ⭐ MODIFICADO: Zoom reducido para mejor visualización
-      currentZoom = 1.7; // Reducido de 2.0 a 1.7
+      currentZoom = 1.7;
       
-      // Calcular la posición del clic relativo al wrapper
       const offset = wrapper.offset();
       const clickX = event.pageX;
       const clickY = event.pageY;
@@ -299,7 +359,6 @@ $(document).ready(function() {
       });
       
     } else {
-      // Zoom out
       currentZoom = 1;
       wrapper.css({
         "transform": "scale(1)",
@@ -314,13 +373,11 @@ $(document).ready(function() {
     }
   });
   
-  // Ajustar el tamaño del flipbook al redimensionar la ventana
   $(window).resize(function() {
     const dimensions = calculateResponsiveDimensions();
     centerWrapper(dimensions.width, dimensions.height);
     
-    // Re-aplicar estilos a los canvas después del redimensionamiento
-    $("#flipbook canvas").css({
+    $("#flipbook canvas, #flipbook img").css({
       'width': '100%',
       'height': '100%',
       'object-fit': 'contain'

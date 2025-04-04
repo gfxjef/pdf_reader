@@ -1,2 +1,4 @@
 Flask==2.3.3
 gunicorn==21.2.0
+Pillow==10.0.0  # Para procesamiento de imágenes
+pdf2image==1.16.3  # Para convertir PDF a imágenes

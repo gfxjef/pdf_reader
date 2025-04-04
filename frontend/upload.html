@@ -1,0 +1,516 @@
+upload.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subir Catálogos - Kossodo 2025</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #3498db;
+            --success-color: #2ecc71;
+            --error-color: #e74c3c;
+            --bg-color: #f8f9fa;
+            --card-color: #ffffff;
+            --text-color: #333333;
+            --border-color: #e1e4e8;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.08);
+            --hover-shadow: 0 10px 20px rgba(0, 0, 0, 0.12);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding-top: 1rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 500;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .card {
+            background-color: var(--card-color);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            width: 100%;
+            height: 200px;
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .file-input-wrapper:hover {
+            border-color: var(--accent-color);
+            background-color: rgba(52, 152, 219, 0.05);
+        }
+
+        .file-input-wrapper.dragover {
+            border-color: var(--accent-color);
+            background-color: rgba(52, 152, 219, 0.1);
+        }
+
+        .file-input {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: var(--accent-color);
+            margin-bottom: 1rem;
+        }
+
+        .upload-text {
+            font-size: 1.1rem;
+            color: var(--text-color);
+            text-align: center;
+        }
+
+        .upload-info {
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .selected-file {
+            margin-top: 1rem;
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            background-color: rgba(52, 152, 219, 0.1);
+            border-radius: 4px;
+            border-left: 3px solid var(--accent-color);
+        }
+
+        .file-name {
+            margin-left: 0.5rem;
+            font-weight: 500;
+            flex-grow: 1;
+            word-break: break-all;
+        }
+
+        .remove-file {
+            background: none;
+            border: none;
+            color: var(--error-color);
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+
+        .submit-btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 0.8rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: block;
+            width: 100%;
+        }
+
+        .submit-btn:hover {
+            background-color: #2980b9;
+        }
+
+        .submit-btn:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1.5rem;
+            display: none;
+        }
+
+        .alert-success {
+            background-color: rgba(46, 204, 113, 0.1);
+            border-left: 3px solid var(--success-color);
+            color: #27ae60;
+        }
+
+        .alert-error {
+            background-color: rgba(231, 76, 60, 0.1);
+            border-left: 3px solid var(--error-color);
+            color: #c0392b;
+        }
+
+        .progress-container {
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background-color: #ecf0f1;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 100%;
+            background-color: var(--accent-color);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-info {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: #666;
+            text-align: center;
+        }
+
+        .back-link {
+            text-align: center;
+            margin-top: 1rem;
+        }
+
+        .back-link a {
+            color: var(--accent-color);
+            text-decoration: none;
+        }
+
+        .back-link a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .card {
+                padding: 1.5rem;
+            }
+            
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            .file-input-wrapper {
+                height: 150px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Subir Nuevo Catálogo</h1>
+        </header>
+
+        <div class="card">
+            <div id="alert-success" class="alert alert-success">
+                Catálogo subido y procesado correctamente.
+            </div>
+            
+            <div id="alert-error" class="alert alert-error">
+                Ocurrió un error al subir el catálogo.
+            </div>
+
+            <form id="upload-form">
+                <div class="form-group">
+                    <label for="pdf-file">Selecciona un archivo PDF:</label>
+                    <div id="file-drop-area" class="file-input-wrapper">
+                        <input type="file" id="pdf-file" class="file-input" accept=".pdf">
+                        <div class="upload-icon">📄</div>
+                        <div class="upload-text">Arrastra un archivo PDF aquí o haz clic para seleccionar</div>
+                        <div class="upload-info">Máximo 50MB</div>
+                    </div>
+                    
+                    <div id="selected-file" style="display: none;" class="selected-file">
+                        <div class="file-icon">📄</div>
+                        <div id="file-name" class="file-name"></div>
+                        <button type="button" id="remove-file" class="remove-file">×</button>
+                    </div>
+                </div>
+                
+                <div id="progress-container" class="progress-container">
+                    <div class="progress-bar">
+                        <div id="progress" class="progress"></div>
+                    </div>
+                    <div id="progress-info" class="progress-info">Procesando...</div>
+                </div>
+                
+                <button type="submit" id="submit-btn" class="submit-btn" disabled>Subir y Procesar</button>
+            </form>
+        </div>
+        
+        <div class="back-link">
+            <a href="catalogo.html">← Volver al Catálogo</a>
+        </div>
+    </div>
+    
+    <script>
+        // Elementos del DOM
+        const form = document.getElementById('upload-form');
+        const fileInput = document.getElementById('pdf-file');
+        const fileDropArea = document.getElementById('file-drop-area');
+        const selectedFileDiv = document.getElementById('selected-file');
+        const fileNameDiv = document.getElementById('file-name');
+        const removeFileBtn = document.getElementById('remove-file');
+        const submitBtn = document.getElementById('submit-btn');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress');
+        const progressInfo = document.getElementById('progress-info');
+        const alertSuccess = document.getElementById('alert-success');
+        const alertError = document.getElementById('alert-error');
+        
+        // Declarar xhr en el ámbito global
+        let xhr;
+        
+        // Manejar drag and drop
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            fileDropArea.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            fileDropArea.addEventListener(eventName, highlight, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            fileDropArea.addEventListener(eventName, unhighlight, false);
+        });
+        
+        function highlight() {
+            fileDropArea.classList.add('dragover');
+        }
+        
+        function unhighlight() {
+            fileDropArea.classList.remove('dragover');
+        }
+        
+        fileDropArea.addEventListener('drop', handleDrop, false);
+        
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelect();
+            }
+        }
+        
+        // Manejar selección de archivo
+        fileInput.addEventListener('change', handleFileSelect);
+        
+        function handleFileSelect() {
+            const file = fileInput.files[0];
+            
+            if (file) {
+                if (file.type !== 'application/pdf') {
+                    showError('Solo se permiten archivos PDF');
+                    resetFileInput();
+                    return;
+                }
+                
+                if (file.size > 50 * 1024 * 1024) { // 50MB
+                    showError('El archivo excede el tamaño máximo de 50MB');
+                    resetFileInput();
+                    return;
+                }
+                
+                fileNameDiv.textContent = file.name;
+                selectedFileDiv.style.display = 'flex';
+                submitBtn.disabled = false;
+                hideAlerts();
+            } else {
+                resetFileInput();
+            }
+        }
+        
+        function resetFileInput() {
+            fileInput.value = '';
+            selectedFileDiv.style.display = 'none';
+            submitBtn.disabled = true;
+        }
+        
+        // Botón para eliminar archivo
+        removeFileBtn.addEventListener('click', function() {
+            resetFileInput();
+        });
+        
+        // Manejo de formulario
+        form.addEventListener('submit', handleSubmit);
+        
+        function handleSubmit(e) {
+            e.preventDefault();
+            
+            const file = fileInput.files[0];
+            if (!file) return;
+            
+            // Preparar FormData
+            const formData = new FormData();
+            formData.append('pdf', file);
+            
+            // Deshabilitar formulario
+            submitBtn.disabled = true;
+            
+            // Mostrar barra de progreso
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
+            progressInfo.textContent = 'Subiendo archivo...';
+            
+            // Enviar archivo
+            xhr = new XMLHttpRequest();  // Usar la variable global en lugar de crear una nueva
+            
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    const percentComplete = Math.round((e.loaded / e.total) * 100);
+                    progressBar.style.width = percentComplete + '%';
+                    progressInfo.textContent = `Subiendo: ${percentComplete}%`;
+                }
+            });
+            
+            xhr.addEventListener('loadstart', function() {
+                progressInfo.textContent = 'Subiendo archivo...';
+                
+                // Iniciar consulta periódica de progreso
+                checkProgress();
+            });
+            
+            xhr.addEventListener('load', function() {
+                if (xhr.status === 200) {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.success) {
+                            showSuccess(`PDF procesado: ${response.pdf_name} (${response.pages} páginas)`);
+                            resetFileInput();
+                        } else {
+                            showError(response.error || 'Error desconocido');
+                        }
+                    } catch (error) {
+                        showError('Error al procesar la respuesta');
+                    }
+                } else {
+                    showError(`Error ${xhr.status}: ${xhr.statusText}`);
+                }
+                
+                progressContainer.style.display = 'none';
+                submitBtn.disabled = false;
+            });
+            
+            xhr.addEventListener('error', function() {
+                showError('Error de conexión');
+                progressContainer.style.display = 'none';
+                submitBtn.disabled = false;
+            });
+            
+            xhr.open('POST', '/upload-pdf');
+            xhr.send(formData);
+        }
+        
+        // Función para consultar el progreso
+        function checkProgress() {
+            if (xhr && xhr.readyState === 4) return; // Ahora xhr está definido
+            
+            fetch('/progreso-pdf')
+                .then(response => response.json())
+                .then(progress => {
+                    if (progress.status === 'processing') {
+                        const page = progress.current_page;
+                        const total = progress.total_pages;
+                        const percent = progress.percentage;
+                        
+                        if (total > 0) {
+                            progressBar.style.width = percent + '%';
+                            progressInfo.textContent = `Procesando página ${page} de ${total} (${percent}%)`;
+                        } else {
+                            progressInfo.textContent = 'Iniciando procesamiento...';
+                        }
+                        
+                        // Consultar nuevamente en 500ms
+                        setTimeout(checkProgress, 500);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error al consultar progreso:', error);
+                    // Intentar de nuevo
+                    setTimeout(checkProgress, 1000);
+                });
+        }
+        
+        // Funciones de alerta
+        function showSuccess(message) {
+            alertError.style.display = 'none';
+            alertSuccess.textContent = message;
+            alertSuccess.style.display = 'block';
+        }
+        
+        function showError(message) {
+            alertSuccess.style.display = 'none';
+            alertError.textContent = message;
+            alertError.style.display = 'block';
+        }
+        
+        function hideAlerts() {
+            alertSuccess.style.display = 'none';
+            alertError.style.display = 'none';
+        }
+    </script>
+</body>
+</html>

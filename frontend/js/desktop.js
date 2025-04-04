@@ -42,25 +42,37 @@ $(document).ready(function() {
       renderPDFDirectly(pdfUrl);
     });
   
-  // NUEVA FUNCIÓN: Verificar si existen imágenes pre-generadas para este PDF
+  // Modificar la función checkForPrerenderedImages
   async function checkForPrerenderedImages(pdfName) {
     try {
-      // Consultar lista de PDFs procesados
-      const response = await fetch('./listar-pdfs-procesados');
+      // Cambiar esto:
+      // const response = await fetch('./listar-pdfs-procesados');
+      
+      // Por esto (ruta absoluta):
+      const response = await fetch('/pdf_reader/listar-pdfs-procesados');
+      
       const processedPdfs = await response.json();
       
-      // Buscar el PDF actual en la lista
+      console.log('PDFs procesados:', processedPdfs); // Añadir para depuración
+      console.log('Buscando PDF:', pdfName); // Añadir para depuración
+      
       const currentPdf = processedPdfs.find(pdf => 
         pdf.name === pdfName + '.pdf' || 
         pdf.name === pdfName
       );
       
+      console.log('PDF encontrado:', currentPdf); // Añadir para depuración
+      
       if (currentPdf && currentPdf.has_images) {
+        // Cambiar esto:
+        // basePath: `./data/images/${currentPdf.name}/pdf`,
+        
+        // Por esto (ruta absoluta):
         return {
           hasImages: true,
           pageCount: currentPdf.pages,
-          basePath: `./data/images/${currentPdf.name}/pdf`,
-          thumbnail: currentPdf.thumbnail
+          basePath: `/pdf_reader/data/images/${currentPdf.name}/pdf`,
+          thumbnail: `/pdf_reader${currentPdf.thumbnail}`
         };
       } else {
         return { hasImages: false };
@@ -70,7 +82,6 @@ $(document).ready(function() {
       return { hasImages: false };
     }
   }
-  
   // NUEVA FUNCIÓN: Cargar imágenes pre-generadas
   function loadPrerenderedImages(basePath, pageCount) {
     let imagesLoaded = 0;

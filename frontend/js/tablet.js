@@ -55,7 +55,7 @@ $(document).ready(function() {
         return {
           hasImages: true,
           pageCount: currentPdf.pages,
-          basePath: `/data/images/${currentPdf.name}/pdf`,
+          basePath: `./data/images/${currentPdf.name}/pdf`,
           thumbnail: currentPdf.thumbnail
         };
       } else {

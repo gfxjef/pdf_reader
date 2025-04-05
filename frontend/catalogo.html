@@ -189,9 +189,21 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Modificada: función para obtener la lista de PDFs procesados con sus miniaturas
     async function getPDFList() {
         try {
-            // Cambio: Usar el endpoint de PDFs procesados que incluye las miniaturas
+            console.log("⏳ Intentando obtener lista de PDFs...");
+            
+            // Verificar contenido de carpeta pdf
+            try {
+                const pdfDirResponse = await fetch('./listar-directorio?dir=pdf');
+                const pdfDirContent = await pdfDirResponse.json();
+                console.log("Contenido de carpeta pdf/:", pdfDirContent);
+            } catch (e) {
+                console.warn("No se pudo listar el directorio pdf/", e);
+            }
+            
+            // Continuar con el código original...
             const response = await fetch('./listar-pdfs-procesados');
             const processedPdfs = await response.json();
+            console.log("PDFs procesados recibidos:", processedPdfs);
             
             if (processedPdfs && processedPdfs.length > 0) {
                 return processedPdfs;
@@ -243,11 +255,33 @@ document.addEventListener('DOMContentLoaded', async function() {
             // Determinar la ruta de la miniatura
             let thumbnailUrl;
             if (pdf.thumbnail) {
-                // Usar la miniatura pre-generada si está disponible
+                // Usar la ruta de miniatura exactamente como viene del backend 
                 thumbnailUrl = pdf.thumbnail;
+                console.log(`Usando ruta de miniatura del backend: ${thumbnailUrl}`);
+            } else if (pdf.isFallback) {
+                // Intentar varias rutas posibles para la miniatura
+                const baseName = pdf.name.replace('.pdf', '');
+                
+                // Intentar múltiples rutas posibles
+                const possiblePaths = [
+                    `pdf/${baseName}/thumbnail.webp`,
+                    `pdf/${baseName}/thumbnail/thumb_1.webp`,
+                    `pdf/${pdf.name}/thumbnail.webp`, 
+                    `pdf/${pdf.name}/thumbnail/thumb_1.webp`
+                ];
+                
+                console.log(`PDF respaldo: "${pdf.name}", probando múltiples rutas:`);
+                console.log(possiblePaths);
+                
+                // Usar la primera ruta, pero continuará con el onerror para probar otras
+                thumbnailUrl = possiblePaths[0];
+                
+                // Guardamos todas las rutas para probarlas en caso de error
+                card.setAttribute('data-alt-paths', JSON.stringify(possiblePaths.slice(1)));
             } else {
-                // Si no hay miniatura, dejar null y mostraremos el icono por defecto
+                // Si no hay miniatura, dejar null como antes
                 thumbnailUrl = null;
+                console.log(`PDF: "${pdf.name}" no tiene miniatura definida`);
             }
             
             const card = document.createElement('div');
@@ -263,7 +297,9 @@ document.addEventListener('DOMContentLoaded', async function() {
                 // Si tenemos miniatura, mostrarla directamente
                 card.innerHTML = `
                     <div class="card-thumbnail">
-                        <img src="${thumbnailUrl}" alt="${cleanFileName}" class="loaded">
+                        <img src="${thumbnailUrl}" alt="${cleanFileName}" class="loaded" 
+                             onload="console.log('✅ Miniatura cargada: ${thumbnailUrl}')" 
+                             onerror="console.error('❌ Error al cargar miniatura: ${thumbnailUrl}')">
                     </div>
                 `;
             } else {
@@ -290,6 +326,25 @@ document.addEventListener('DOMContentLoaded', async function() {
             // Para PDFs sin miniatura, intentar generarla dinámicamente
             if (!thumbnailUrl) {
                 generateAndSetThumbnail(card, cleanFileName, index);
+            }
+
+            // Agregar después de crear la card con miniatura
+            if (thumbnailUrl) {
+                // Manejar error de carga de miniatura probando rutas alternativas
+                const img = card.querySelector('img');
+                img.addEventListener('error', function() {
+                    console.error(`Error cargando miniatura: ${this.src}`);
+                    const altPaths = card.getAttribute('data-alt-paths');
+                    if (altPaths) {
+                        const paths = JSON.parse(altPaths);
+                        if (paths.length > 0) {
+                            const nextPath = paths.shift();
+                            console.log(`Intentando ruta alternativa: ${nextPath}`);
+                            card.setAttribute('data-alt-paths', JSON.stringify(paths));
+                            this.src = nextPath;
+                        }
+                    }
+                });
             }
         });
     }

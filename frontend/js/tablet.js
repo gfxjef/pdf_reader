@@ -19,20 +19,50 @@ $(document).ready(function() {
   console.log("Cargando PDF en tablet:", pdfUrl);
   
   const flipbookContainer = document.getElementById('flipbook');
-  let pagesRendered = 0;
   
-  // Extraer nombre del archivo PDF sin ruta y extensión
-  const pdfFileName = pdfUrl.split('/').pop().replace('.pdf', '');
+  // Extraer nombre base del PDF para búsqueda de imágenes
+  // Usar la variable pdfBaseName que está definida en index.html
+  const pdfBaseName = window.pdfBaseName || pdfUrl.split('/').pop().replace('.pdf', '');
+  console.log("Nombre base del PDF para buscar imágenes:", pdfBaseName);
   
-  // NUEVO: Verificar si existen imágenes pre-generadas para este PDF
-  checkForPrerenderedImages(pdfFileName)
+  // Construir la ruta a la carpeta donde están las imágenes
+  // Las imágenes están en frontend/pdf/[nombre_catalogo]/page_X.webp
+  const basePath = `pdf/${pdfBaseName}`;
+  console.log("Buscando imágenes en:", basePath);
+  
+  // Verificar si existen imágenes contando cuántas hay
+  checkForPrerenderedImages(pdfBaseName)
     .then(imageData => {
       if (imageData.hasImages) {
         console.log(`Usando imágenes pre-generadas (${imageData.pageCount} páginas)`);
         loadPrerenderedImages(imageData.basePath, imageData.pageCount);
       } else {
-        console.log('No se encontraron imágenes pre-generadas, renderizando PDF');
-        renderPDFDirectly(pdfUrl);
+        console.log('No se encontraron imágenes pre-generadas, intentando con nombre alternativo');
+        
+        // Intentar con versiones alternativas del nombre (con guiones bajos)
+        const altBaseName = pdfBaseName.replace(/ /g, '_');
+        const altPath = `pdf/${altBaseName}`;
+        console.log("Intentando ruta alternativa:", altPath);
+        
+        // Verificar si existe la carpeta alternativa
+        testImageExists(`${altPath}/page_1.webp`)
+          .then(exists => {
+            if (exists) {
+              console.log("Encontrada ruta alternativa con éxito");
+              // Contar las imágenes en esta carpeta
+              countImagesInFolder(altPath)
+                .then(count => {
+                  if (count > 0) {
+                    loadPrerenderedImages(altPath, count);
+                  } else {
+                    renderPDFDirectly(pdfUrl);
+                  }
+                });
+            } else {
+              console.log("No se encontraron imágenes en ninguna ruta");
+              renderPDFDirectly(pdfUrl);
+            }
+          });
       }
     })
     .catch(error => {
@@ -40,57 +70,107 @@ $(document).ready(function() {
       renderPDFDirectly(pdfUrl);
     });
   
-  // NUEVA FUNCIÓN: Verificar si existen imágenes pre-generadas para este PDF
-  // Modificar la función checkForPrerenderedImages
+  // Función para probar si una imagen existe
+  function testImageExists(imagePath) {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => resolve(true);
+      img.onerror = () => resolve(false);
+      img.src = imagePath;
+    });
+  }
+  
+  // Función para contar imágenes en una carpeta
+  function countImagesInFolder(folderPath) {
+    return new Promise(resolve => {
+      let count = 0;
+      let checking = true;
+      
+      function checkNext(pageNum) {
+        if (!checking) return;
+        
+        const img = new Image();
+        img.onload = () => {
+          count = pageNum;
+          checkNext(pageNum + 1);
+        };
+        img.onerror = () => {
+          checking = false;
+          resolve(count);
+        };
+        img.src = `${folderPath}/page_${pageNum}.webp`;
+      }
+      
+      checkNext(1);
+    });
+  }
+  
+  // FUNCIÓN MODIFICADA: Verificar si existen imágenes pre-generadas para este PDF
   async function checkForPrerenderedImages(pdfName) {
     try {
-      // Cambiar esto:
-      // const response = await fetch('./listar-pdfs-procesados');
+      // Primero intentamos con el endpoint de PDFs procesados
+      const response = await fetch(`./listar-pdfs-procesados`);
       
-      // Por esto (ruta absoluta):
-      const response = await fetch('/pdf_reader/listar-pdfs-procesados');
+      if (!response.ok) {
+        console.warn(`Error HTTP al consultar PDFs procesados: ${response.status}`);
+        // Intentar verificar directamente si existen imágenes
+        const count = await countImagesInFolder(`pdf/${pdfName}`);
+        return {
+          hasImages: count > 0,
+          pageCount: count,
+          basePath: `pdf/${pdfName}`
+        };
+      }
       
       const processedPdfs = await response.json();
+      console.log('PDFs procesados:', processedPdfs);
+      console.log('Buscando PDF:', pdfName);
       
-      console.log('PDFs procesados:', processedPdfs); // Añadir para depuración
-      console.log('Buscando PDF:', pdfName); // Añadir para depuración
-      
+      // Buscar nuestro PDF en la lista de procesados
       const currentPdf = processedPdfs.find(pdf => 
-        pdf.name === pdfName + '.pdf' || 
-        pdf.name === pdfName
+        pdf.name === pdfName || 
+        pdf.name === pdfName + '.pdf' ||
+        pdf.name === pdfName.replace(/ /g, '_') ||
+        pdf.name === pdfName.replace(/ /g, '_') + '.pdf'
       );
       
-      console.log('PDF encontrado:', currentPdf); // Añadir para depuración
+      console.log('PDF encontrado:', currentPdf);
       
       if (currentPdf && currentPdf.has_images) {
-        // Cambiar esto:
-        // basePath: `./data/images/${currentPdf.name}/pdf`,
-        
-        // Por esto (ruta absoluta):
         return {
           hasImages: true,
           pageCount: currentPdf.pages,
-          basePath: `/pdf_reader/data/images/${currentPdf.name}/pdf`,
-          thumbnail: `/pdf_reader${currentPdf.thumbnail}`
+          basePath: `pdf/${currentPdf.name}`, // Usar ruta a frontend/pdf/[nombre]
+          thumbnail: currentPdf.thumbnail
         };
       } else {
-        return { hasImages: false };
+        // Verificar directamente si existen imágenes en frontend/pdf/[nombre]
+        const count = await countImagesInFolder(`pdf/${pdfName}`);
+        return {
+          hasImages: count > 0,
+          pageCount: count,
+          basePath: `pdf/${pdfName}`
+        };
       }
     } catch (error) {
       console.error('Error al verificar imágenes:', error);
       return { hasImages: false };
     }
-  }  
-  // NUEVA FUNCIÓN: Cargar imágenes pre-generadas
+  }
+  
+  // FUNCIÓN MODIFICADA: Cargar imágenes pre-generadas
   function loadPrerenderedImages(basePath, pageCount) {
     let imagesLoaded = 0;
     pageWidth = 0;
     pageHeight = 0;
     
+    console.log(`Cargando ${pageCount} imágenes desde ${basePath}`);
+    
     for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
       const img = new Image();
       img.onload = function() {
         imagesLoaded++;
+        console.log(`Imagen ${pageNum}/${pageCount} cargada`);
         
         // Guardar las dimensiones de la primera página
         if (pageNum === 1) {
@@ -106,7 +186,7 @@ $(document).ready(function() {
       };
       
       img.onerror = function() {
-        console.error(`Error al cargar imagen para página ${pageNum}`);
+        console.error(`Error al cargar imagen para página ${pageNum}: ${img.src}`);
         imagesLoaded++;
         
         // Si falla, mostrar una página en blanco con mensaje de error
@@ -129,6 +209,8 @@ $(document).ready(function() {
   
   // FUNCIÓN EXISTENTE MODIFICADA: Renderizado directo de PDF como respaldo
   function renderPDFDirectly(pdfUrl) {
+    console.log("Intentando renderizar PDF directamente:", pdfUrl);
+    
     pdfjsLib.getDocument(pdfUrl).promise.then(function(pdf) {
       const numPages = pdf.numPages;
       console.log("Número de páginas:", numPages);
@@ -155,8 +237,8 @@ $(document).ready(function() {
           
           page.render(renderContext).promise.then(function() {
             $(flipbookContainer).append(canvas);
-            pagesRendered++;
-            if (pagesRendered === numPages) {
+            
+            if ($(flipbookContainer).children().length === numPages) {
               initializeFlipbook();
               hideLoader();
             }
@@ -165,6 +247,18 @@ $(document).ready(function() {
       }
     }).catch(function(error) {
       console.error('Error al cargar el PDF:', error);
+      
+      // Mostrar mensaje de error
+      const errorMsg = document.createElement('div');
+      errorMsg.className = 'error-page';
+      errorMsg.innerHTML = `
+        <div class="error-message">
+          <h3>No se pudo cargar el PDF</h3>
+          <p>${error.message}</p>
+        </div>
+      `;
+      $(flipbookContainer).append(errorMsg);
+      hideLoader();
     });
   }
   

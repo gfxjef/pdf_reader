@@ -5,7 +5,6 @@ import uuid
 import shutil  # Añadir esta importación
 from .pdf_processor import PDFProcessor
 
-
 # Configuración de carga de archivos
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'pdf'}
@@ -13,15 +12,13 @@ ALLOWED_EXTENSIONS = {'pdf'}
 app = Flask(__name__, 
             static_folder='../frontend',
             static_url_path='')
-
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # Limitar a 50MB
 app.secret_key = os.urandom(24)  # Para mensajes flash
 
 # Asegurar que existan los directorios necesarios
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs('data/images', exist_ok=True)
-os.makedirs(os.path.join(app.static_folder, 'pdfs'), exist_ok=True)  # Asegurar carpeta frontend/pdfs
+os.makedirs(os.path.join(app.static_folder, 'pdf'), exist_ok=True)  # Asegurar carpeta frontend/pdf
 
 # Inicializar el procesador de PDF
 pdf_processor = PDFProcessor()
@@ -36,7 +33,6 @@ def index():
     return redirect(url_for('catalogo'))
 
 # Añadir este nuevo endpoint después de los otros endpoints
-
 @app.route('/progreso-pdf')
 def progreso_pdf():
     """Endpoint para consultar el progreso del procesamiento de PDF"""
@@ -51,27 +47,58 @@ def catalogo():
 def upload_page():
     return app.send_static_file('upload.html')
 
-@app.route('/pdfs/<path:filename>')
-def serve_pdf(filename):
-    """Endpoint para servir archivos PDF directamente"""
-    return send_from_directory(os.path.join(app.static_folder, 'pdfs'), filename)
-
-@app.route('/data/images/<path:path>')
-def serve_images(path):
-    """Endpoint para servir imágenes generadas"""
+# Nuevo endpoint para servir archivos desde la carpeta pdf/
+@app.route('/pdf/<path:path>')
+def serve_frontend_pdf_files(path):
+    """Endpoint para servir archivos desde la carpeta pdf en frontend"""
     directory, file = os.path.split(path)
-    return send_from_directory(os.path.join('data/images', directory), file)
+    return send_from_directory(os.path.join(app.static_folder, 'pdf', directory), file)
+
+# Nuevo endpoint para listar directorios
+@app.route('/listar-directorio')
+def listar_directorio():
+    """Endpoint para listar contenidos de un directorio específico"""
+    dir_path = request.args.get('dir', '')
+    
+    # Por seguridad, solo permitir directorios específicos
+    allowed_dirs = {
+        'pdf': os.path.join(app.static_folder, 'pdf')
+    }
+    
+    if dir_path not in allowed_dirs or not os.path.exists(allowed_dirs[dir_path]):
+        return jsonify([])
+    
+    # Listar contenidos del directorio
+    try:
+        items = []
+        for item in os.listdir(allowed_dirs[dir_path]):
+            item_path = os.path.join(allowed_dirs[dir_path], item)
+            is_dir = os.path.isdir(item_path)
+            items.append({
+                'name': item + ('/' if is_dir else ''),
+                'isDirectory': is_dir,
+                'path': os.path.join(dir_path, item)
+            })
+        return jsonify(items)
+    except Exception as e:
+        print(f"Error al listar directorio {dir_path}: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/listar-pdfs')
 def listar_pdfs():
     """Endpoint para listar los PDFs disponibles"""
-    pdf_dir = os.path.join(app.static_folder, 'pdfs')
     pdfs = []
     
+    # Buscar en frontend/pdf
+    pdf_dir = os.path.join(app.static_folder, 'pdf')
     if os.path.exists(pdf_dir):
-        for archivo in os.listdir(pdf_dir):
-            if archivo.lower().endswith('.pdf'):
-                pdfs.append(archivo)
+        for carpeta in os.listdir(pdf_dir):
+            pdf_folder = os.path.join(pdf_dir, carpeta)
+            if os.path.isdir(pdf_folder):
+                # Buscar archivos PDF dentro de esta carpeta
+                for archivo in os.listdir(pdf_folder):
+                    if archivo.lower().endswith('.pdf'):
+                        pdfs.append(archivo)
     
     pdfs.sort()  # Ordenar alfabéticamente
     return jsonify(pdfs)
@@ -79,28 +106,34 @@ def listar_pdfs():
 @app.route('/listar-pdfs-procesados')
 def listar_pdfs_procesados():
     """Endpoint para listar PDFs procesados y contar sus páginas basándose en las imágenes .webp"""
-    images_dir = 'data/images'
     processed_pdfs = []
     
-    if os.path.exists(images_dir):
-        for pdf_folder in os.listdir(images_dir):
-            pdf_path = os.path.join(images_dir, pdf_folder)
+    # Buscar en frontend/pdf (nueva estructura)
+    frontend_pdf_dir = os.path.join(app.static_folder, 'pdf')
+    if os.path.exists(frontend_pdf_dir):
+        for pdf_folder in os.listdir(frontend_pdf_dir):
+            folder_path = os.path.join(frontend_pdf_dir, pdf_folder)
             
-            # Verificar que tenga la estructura esperada de directorios
-            if os.path.isdir(pdf_path):
-                pdf_images_dir = os.path.join(pdf_path, 'pdf')
-                if os.path.exists(pdf_images_dir):
-                    # Contar archivos .webp en el directorio pdf/
-                    page_count = len([f for f in os.listdir(pdf_images_dir) 
-                                   if f.startswith('page_') and f.endswith('.webp')])
+            if os.path.isdir(folder_path):
+                # Contar archivos .webp en la carpeta
+                page_files = [f for f in os.listdir(folder_path) 
+                           if f.startswith('page_') and f.endswith('.webp')]
+                page_count = len(page_files)
+                
+                if page_count > 0:
+                    # Buscar un archivo thumbnail
+                    thumbnail = None
+                    for file in os.listdir(folder_path):
+                        if file.startswith('thumb_') and file.endswith('.webp'):
+                            thumbnail = f'/pdf/{pdf_folder}/{file}'
+                            break
                     
-                    if page_count > 0:
-                        processed_pdfs.append({
-                            'name': pdf_folder,
-                            'pages': page_count,
-                            'has_images': True,
-                            'thumbnail': f'/data/images/{pdf_folder}/thumbnail/thumb_1.webp'
-                        })
+                    processed_pdfs.append({
+                        'name': pdf_folder,
+                        'pages': page_count,
+                        'has_images': True,
+                        'thumbnail': thumbnail or f'/pdf/{pdf_folder}/page_1.webp'  # Usar la primera página como miniatura si no hay una específica
+                    })
     
     return jsonify(processed_pdfs)
 
@@ -116,21 +149,13 @@ def upload_pdf():
         return jsonify({'success': False, 'error': 'No se seleccionó archivo'}), 400
     
     if file and allowed_file(file.filename):
-        # Guardar el archivo subido
+        # Guardar el archivo subido temporalmente
         filename = secure_filename(file.filename)
         temp_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(temp_path)
         
-        # Hacer una copia del archivo original antes de procesarlo
-        frontend_pdf_path = os.path.join(app.static_folder, 'pdfs', filename)
-        shutil.copy2(temp_path, frontend_pdf_path)
-        
-        # Procesar el PDF (ahora NO eliminamos el original después de procesarlo)
-        result = pdf_processor.process_pdf(temp_path, delete_after=False)
-        
-        # Ahora podemos eliminar el archivo temporal
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+        # Procesar el PDF 
+        result = pdf_processor.process_pdf(temp_path, delete_after=True)
         
         if result['success']:
             return jsonify({

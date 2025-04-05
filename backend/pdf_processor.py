@@ -1,20 +1,30 @@
 import os
 import shutil
-from pdf2image import convert_from_path
-from PIL import Image
 import logging
 import time
+from PIL import Image
+import fitz  # PyMuPDF
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class PDFProcessor:
-    def __init__(self, base_dir='data/images'):
+    def __init__(self, base_dir=None):
         """Inicializa el procesador de PDF."""
-        self.base_dir = base_dir
+        # Calcular la ruta base correcta relativa al directorio actual
+        if base_dir is None:
+            # La carpeta frontend está a un nivel superior de backend
+            current_dir = os.path.dirname(os.path.abspath(__file__))  # Directorio actual (backend)
+            parent_dir = os.path.dirname(current_dir)  # Directorio padre
+            self.base_dir = os.path.join(parent_dir, 'frontend', 'pdf')
+        else:
+            self.base_dir = base_dir
+            
         # Asegurar que existan los directorios
         os.makedirs(self.base_dir, exist_ok=True)
+        logger.info(f"Directorio base para PDFs: {self.base_dir}")
+        
         # Estado del procesamiento
         self.current_progress = {
             "status": "idle",
@@ -30,18 +40,20 @@ class PDFProcessor:
     
     def process_pdf(self, pdf_path, delete_after=False):
         """
-        Procesa un PDF y extrae imágenes de todas sus páginas.
+        Procesa un PDF extrayendo cada página en una imagen utilizando PyMuPDF y convierte la imagen a WEBP.
         
         Args:
-            pdf_path: Ruta al archivo PDF
-            delete_after: Si se debe eliminar el PDF original después
+            pdf_path: Ruta al archivo PDF.
+            delete_after: Si se debe eliminar el PDF original después.
             
         Returns:
-            dict: Información del procesamiento
+            dict: Información del procesamiento, incluyendo las rutas de las imágenes generadas.
         """
         try:
-            # Actualizar estado a "procesando"
             pdf_filename = os.path.basename(pdf_path)
+            pdf_name_without_ext = os.path.splitext(pdf_filename)[0]
+            
+            # Inicializar estado del procesamiento
             self.current_progress = {
                 "status": "processing",
                 "current_file": pdf_filename,
@@ -51,64 +63,40 @@ class PDFProcessor:
                 "start_time": time.time()
             }
             
-            # Obtener el nombre del archivo sin la ruta
-            pdf_dir = os.path.join(self.base_dir, pdf_filename)
-            pdf_images_dir = os.path.join(pdf_dir, 'pdf')
-            thumb_images_dir = os.path.join(pdf_dir, 'thumbnail')
-            original_dir = os.path.join(pdf_dir, 'original')
-            
-            # Crear estructura de directorios
+            # Crear directorio para este PDF
+            pdf_dir = os.path.join(self.base_dir, pdf_name_without_ext)
             os.makedirs(pdf_dir, exist_ok=True)
-            os.makedirs(pdf_images_dir, exist_ok=True)
-            os.makedirs(thumb_images_dir, exist_ok=True)
-            os.makedirs(original_dir, exist_ok=True)
             
-            # Guardar una copia del PDF original
-            original_pdf_path = os.path.join(original_dir, pdf_filename)
+            # Guardar una copia del PDF original en la misma carpeta
+            original_pdf_path = os.path.join(pdf_dir, pdf_filename)
             shutil.copy2(pdf_path, original_pdf_path)
             logger.info(f"PDF original guardado en: {original_pdf_path}")
             
-            # Convertir PDF a imágenes
-            logger.info(f"Convirtiendo PDF: {pdf_filename}")
-            images = convert_from_path(pdf_path, dpi=300)
-            
-            # Actualizar total de páginas
-            total_pages = len(images)
+            # Abrir el PDF y extraer cada página a imagen
+            doc = fitz.open(pdf_path)
+            total_pages = doc.page_count
             self.current_progress["total_pages"] = total_pages
+            images = []
             
-            image_paths = []
+            for i in range(total_pages):
+                page = doc.load_page(i)
+                pix = page.get_pixmap()
+                # Determinar el modo según la presencia de canal alfa
+                mode = "RGBA" if pix.alpha else "RGB"
+                # Convertir el pixmap a imagen PIL utilizando los datos del pixmap
+                img = Image.frombytes(mode, (pix.width, pix.height), pix.samples)
+                # Definir la ruta de salida en formato WEBP
+                webp_path = os.path.join(pdf_dir, f"page_{i+1}.webp")
+                img.save(webp_path, "WEBP", quality=100)
+                images.append(webp_path)
+                
+                # Actualizar el progreso
+                self.current_progress["current_page"] = i + 1
+                self.current_progress["percentage"] = int(((i + 1) / total_pages) * 100)
+                logger.info(f"Procesada página {i+1} de {total_pages}")
             
-            # Crear miniatura solo de la primera página
-            if total_pages > 0:
-                first_image = images[0]
-                # Crear y guardar miniatura de la primera página
-                width, height = first_image.size
-                new_width = 500
-                new_height = int((new_width / width) * height)
-                
-                thumb = first_image.resize((new_width, new_height), Image.LANCZOS)
-                thumb_path = os.path.join(thumb_images_dir, f"thumb_1.webp")
-                thumb.save(thumb_path, 'WEBP', quality=75)
-                logger.info(f"Creada miniatura para {pdf_filename}")
-            
-            # Procesar cada página
-            for i, image in enumerate(images):
-                # Actualizar progreso
-                page_num = i + 1
-                self.current_progress["current_page"] = page_num
-                self.current_progress["percentage"] = int((page_num / total_pages) * 100)
-                
-                # Nombre de archivo para la página
-                image_filename = f"page_{page_num}.webp"
-                
-                # Rutas completas
-                image_path = os.path.join(pdf_images_dir, image_filename)
-                
-                # Guardar imagen completa
-                image.save(image_path, 'WEBP', quality=90)
-                image_paths.append(image_path)
-                
-                logger.info(f"Procesada página {page_num}/{total_pages} ({self.current_progress['percentage']}%) de {pdf_filename}")
+            # Crear una miniatura a partir de la primera página
+            thumbnail = self.create_thumbnail_from_image(images[0], pdf_dir)
             
             # Opcionalmente eliminar el PDF original
             if delete_after and os.path.exists(pdf_path):
@@ -130,26 +118,39 @@ class PDFProcessor:
             
             return {
                 "success": True,
-                "pdf_name": pdf_filename,
+                "pdf_name": pdf_name_without_ext,
                 "pages": total_pages,
                 "directory": pdf_dir,
-                "images": image_paths,
-                "thumbnail": os.path.join(thumb_images_dir, "thumb_1.webp"),
+                "images": images,
+                "thumbnail": thumbnail,
                 "original_pdf": original_pdf_path,
-                "processing_time": elapsed_time
+                "processing_time": elapsed_time,
+                "note": "PDF procesado y páginas convertidas a imágenes WEBP utilizando PyMuPDF."
             }
             
         except Exception as e:
-            # Actualizar estado a "error"
             self.current_progress = {
                 "status": "error",
                 "error_message": str(e),
                 "current_file": pdf_filename if 'pdf_filename' in locals() else None
             }
-            
             logger.error(f"Error procesando PDF {pdf_path}: {str(e)}")
             return {
                 "success": False,
                 "error": str(e),
                 "pdf_path": pdf_path
             }
+    
+    def create_thumbnail_from_image(self, image_path, pdf_dir):
+        """Crea una miniatura a partir de la imagen de la primera página en formato WEBP."""
+        try:
+            img = Image.open(image_path)
+            # Redimensionar la imagen para que actúe como miniatura
+            img.thumbnail((250, 350))
+            thumb_path = os.path.join(pdf_dir, "thumb_1.webp")
+            img.save(thumb_path, "WEBP", quality=100)
+            logger.info(f"Miniatura creada en {thumb_path}")
+            return thumb_path
+        except Exception as e:
+            logger.error(f"Error creando miniatura: {str(e)}")
+            return None

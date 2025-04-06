@@ -8,6 +8,11 @@
   <link rel="stylesheet" href="css/styles.css">  
   <!-- Incluir PDF.js desde CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <!-- Incluir jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <!-- Incluir Turn.js versión 0.11 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/turn.js/0.11/turn.min.js"></script>
+  
   <script>
     // Configura el worker de PDF.js
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
@@ -23,24 +28,22 @@
     
     // Verificar si el PDF está definido y si tiene la ruta correcta
     if (!selectedPDF) {
-      // Si no hay parámetro, usar un PDF por defecto
-      selectedPDF = 'pdfs/Catálogo de Industria Farmaceutica - Kossodo 2025.pdf';
-    } else if (!selectedPDF.startsWith('pdfs/')) {
-      // Si la ruta no comienza con 'pdfs/', añadirla
+      // Si no hay parámetro, usar un PDF por defecto pero con la ruta correcta
+      selectedPDF = 'pdf/Catálogo de Industria Farmaceutica - Kossodo 2025/Catálogo de Industria Farmaceutica - Kossodo 2025.pdf';
+    } else if (!selectedPDF.startsWith('pdf/')) {
+      // Si la ruta no comienza con 'pdf/' (sin 's'), añadirla
       if (!selectedPDF.includes('/')) {
-        selectedPDF = 'pdfs/' + selectedPDF;
+        const baseName = selectedPDF.replace('.pdf', '');
+        selectedPDF = `pdf/${baseName}/${selectedPDF}`;
       }
     }
     
     console.log("PDF seleccionado:", selectedPDF);
-  </script>
-  <!-- Incluir jQuery -->
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <!-- Incluir Turn.js versión 0.11 -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/turn.js/0.11/turn.min.js"></script>
-  
-  <!-- Script para detectar dispositivo y cargar el JS correspondiente -->
-  <script>
+    
+    // Extraer el nombre base del PDF para búsqueda de imágenes
+    const pdfBaseName = selectedPDF.split('/').pop().replace('.pdf', '');
+    
+    // Detección de dispositivo
     function detectarDispositivo() {
       const ancho = window.innerWidth;
       if (ancho < 768) {
@@ -61,15 +64,84 @@
       console.log('Cargado script para: ' + dispositivo);
     }
     
-    // Esperar a que DOM esté listo para cargar el script
-    $(document).ready(function() {
-      cargarScript();
-    });
-    
-    // Recargar si cambia el tamaño de ventana significativamente
+    // Variable para controlar redimensionamiento
     let tiempoEspera;
     let dispositivoActual = detectarDispositivo();
     
+    // Cuando el documento esté listo
+    $(document).ready(function() {
+      // Cargar el script específico para el dispositivo
+      cargarScript();
+      
+      // Configurar eventos de botones
+      
+      // Volver al catálogo
+      document.getElementById('back-catalog').addEventListener('click', function() {
+        window.location.href = 'catalogo.html';
+      });
+      
+      // Botón de descarga PDF
+      document.getElementById('download-pdf').addEventListener('click', async function() {
+        // Obtener el nombre del PDF actual
+        const pdfName = selectedPDF.split('/').pop();
+        const pdfBaseName = pdfName.replace('.pdf', '');
+        
+        // Intentar encontrar el PDF en la ruta correcta
+        let pdfPath = '';
+        
+        // Si selectedPDF ya tiene la estructura correcta, usarla directamente
+        if (selectedPDF.startsWith('pdf/') && selectedPDF.split('/').length >= 3) {
+          pdfPath = selectedPDF;
+        } else {
+          // Construir la ruta correcta basada en el nombre base
+          // Asegurar que la extensión .pdf esté presente
+          const pdfFileName = pdfBaseName.endsWith('.pdf') ? pdfBaseName : `${pdfBaseName}.pdf`;
+          pdfPath = `pdf/${pdfBaseName}/${pdfFileName}`;
+        }
+        
+        // Asegurarse de que la ruta termine con .pdf
+        if (!pdfPath.endsWith('.pdf')) {
+          pdfPath += '.pdf';
+        }
+        
+        console.log(`Intentando descargar PDF desde: ${pdfPath}`);
+        
+        try {
+          // Verificar si el archivo existe en la ruta
+          const response = await fetch(pdfPath, { method: 'HEAD' });
+          
+          if (!response.ok) {
+            throw new Error(`No se encontró el archivo en ${pdfPath}`);
+          }
+          
+          // Descargar el archivo
+          const blob = await (await fetch(pdfPath)).blob();
+          const blobUrl = URL.createObjectURL(blob);
+          
+          // Crear enlace de descarga
+          const downloadLink = document.createElement('a');
+          downloadLink.href = blobUrl;
+          // Asegurar que el nombre de descarga termine con .pdf
+          const downloadName = pdfName.endsWith('.pdf') ? pdfName : `${pdfName}.pdf`;
+          downloadLink.download = downloadName;
+          
+          // Forzar la descarga
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          
+          // Limpieza
+          setTimeout(() => {
+            URL.revokeObjectURL(blobUrl);
+            document.body.removeChild(downloadLink);
+          }, 100);
+        } catch (error) {
+          console.error('Error al descargar el PDF:', error);
+          alert('No se pudo descargar el PDF. Verifica la ruta: ' + pdfPath);
+        }
+      });
+    });
+    
+    // Recargar si cambia el tamaño de ventana significativamente
     window.addEventListener('resize', function() {
       clearTimeout(tiempoEspera);
       tiempoEspera = setTimeout(function() {
@@ -116,14 +188,13 @@
         <path fill="currentColor" d="M8.59,16.58L13.17,12L8.59,7.41L10,6L16,12L10,18L8.59,16.58Z"></path>
       </svg>
     </button>
+    <!-- Nuevo botón de descarga -->
+    <button id="download-pdf" class="nav-btn" title="Descargar PDF">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+        <path fill="currentColor" d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z"></path>
+      </svg>
+    </button>
   </div>
-  
-  <script>
-    // Agregar evento al botón de volver al catálogo
-    document.getElementById('back-catalog').addEventListener('click', function() {
-      window.location.href = 'catalogo.html';
-    });
-  </script>
   
   <!-- Enlaza el loader.js -->
   <script src="js/loader.js"></script>

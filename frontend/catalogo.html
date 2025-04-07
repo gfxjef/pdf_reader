@@ -255,8 +255,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             // Determinar la ruta de la miniatura
             let thumbnailUrl;
             if (pdf.thumbnail) {
-                // Usar la ruta de miniatura exactamente como viene del backend 
-                thumbnailUrl = pdf.thumbnail;
+                // Elimina el slash inicial para que sea relativa
+                thumbnailUrl = pdf.thumbnail.replace(/^\/pdf/, 'pdf');
                 console.log(`Usando ruta de miniatura del backend: ${thumbnailUrl}`);
             } else if (pdf.isFallback) {
                 // Intentar varias rutas posibles para la miniatura

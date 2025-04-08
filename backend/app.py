@@ -16,7 +16,7 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # Limitar a 50 MB
 app.secret_key = os.urandom(24)
 
-# Crear directorios necesarios
+# Crear los directorios necesarios
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(os.path.join(app.static_folder, 'pdf'), exist_ok=True)
 
@@ -24,7 +24,7 @@ os.makedirs(os.path.join(app.static_folder, 'pdf'), exist_ok=True)
 pdf_processor = PDFProcessor()
 
 # --------------------------
-# Crear el Blueprint para los endpoints relacionados con PDF
+# Definición del Blueprint para PDF
 # --------------------------
 pdf_bp = Blueprint('pdf_bp', __name__)
 
@@ -34,23 +34,19 @@ ALLOWED_EXTENSIONS = {'pdf'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Endpoint para consultar el progreso del procesamiento de PDF
 @pdf_bp.route('/progreso-pdf')
 def progreso_pdf():
     progress = pdf_processor.get_progress()
     return jsonify(progress)
 
-# Endpoint para listar contenidos de un directorio específico en frontend/pdf
 @pdf_bp.route('/listar-directorio')
 def listar_directorio():
     dir_path = request.args.get('dir', '')
-    # Solo permitimos ciertos directorios, en este caso "pdf"
     allowed_dirs = {
         'pdf': os.path.join(app.static_folder, 'pdf')
     }
     if dir_path not in allowed_dirs or not os.path.exists(allowed_dirs[dir_path]):
         return jsonify([])
-
     try:
         items = []
         for item in os.listdir(allowed_dirs[dir_path]):
@@ -65,7 +61,6 @@ def listar_directorio():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# Endpoint para listar PDFs (archivos originales) en frontend/pdf
 @pdf_bp.route('/listar-pdfs')
 def listar_pdfs():
     pdfs = []
@@ -80,7 +75,6 @@ def listar_pdfs():
     pdfs.sort()
     return jsonify(pdfs)
 
-# Endpoint para listar PDFs procesados (contando las imágenes .webp generadas)
 @pdf_bp.route('/listar-pdfs-procesados')
 def listar_pdfs_procesados():
     processed_pdfs = []
@@ -89,14 +83,9 @@ def listar_pdfs_procesados():
         for pdf_folder in os.listdir(frontend_pdf_dir):
             folder_path = os.path.join(frontend_pdf_dir, pdf_folder)
             if os.path.isdir(folder_path):
-                # Contar las imágenes generadas para cada página
-                page_files = [
-                    f for f in os.listdir(folder_path)
-                    if f.startswith('page_') and f.endswith('.webp')
-                ]
+                page_files = [f for f in os.listdir(folder_path) if f.startswith('page_') and f.endswith('.webp')]
                 page_count = len(page_files)
                 if page_count > 0:
-                    # Buscar la miniatura (o usar la imagen de la primera página)
                     thumbnail = None
                     for file in os.listdir(folder_path):
                         if file.startswith('thumb_') and file.endswith('.webp'):
@@ -110,7 +99,6 @@ def listar_pdfs_procesados():
                     })
     return jsonify(processed_pdfs)
 
-# Endpoint para subir y procesar un PDF
 @pdf_bp.route('/upload-pdf', methods=['POST'])
 def upload_pdf():
     if 'pdf' not in request.files:
@@ -125,7 +113,6 @@ def upload_pdf():
         temp_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(temp_path)
 
-        # Procesar el PDF y eliminar el archivo original si se indica
         result = pdf_processor.process_pdf(temp_path, delete_after=True)
         if result['success']:
             return jsonify({
@@ -139,7 +126,6 @@ def upload_pdf():
 
     return jsonify({'success': False, 'error': 'Tipo de archivo no permitido'}), 400
 
-# Endpoint para servir archivos desde la carpeta pdf/ (del frontend)
 @pdf_bp.route('/pdf/<path:path>')
 def serve_frontend_pdf_files(path):
     directory, file = os.path.split(path)
@@ -149,7 +135,7 @@ def serve_frontend_pdf_files(path):
 app.register_blueprint(pdf_bp)
 
 # --------------------------
-# Rutas principales para páginas HTML
+# Rutas de la aplicación principal (HTML)
 # --------------------------
 @app.route('/')
 def index():
@@ -164,7 +150,7 @@ def upload_page():
     return app.send_static_file('upload.html')
 
 # --------------------------
-# Ejecución de la aplicación
+# Punto de entrada para desarrollo
 # --------------------------
 if __name__ == '__main__':
     app.run(debug=True)

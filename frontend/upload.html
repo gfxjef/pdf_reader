@@ -460,7 +460,7 @@ upload.html -->
                 submitBtn.disabled = false;
             });
             
-            xhr.open('POST', '/upload-pdf');
+            xhr.open('POST', '/pdf_reader/upload-pdf');
             xhr.send(formData);
         }
         
@@ -468,7 +468,7 @@ upload.html -->
         function checkProgress() {
             if (xhr && xhr.readyState === 4) return; // Ahora xhr está definido
             
-            fetch('/progreso-pdf')
+            fetch('/pdf_reader/progreso-pdf')
                 .then(response => response.json())
                 .then(progress => {
                     if (progress.status === 'processing') {
